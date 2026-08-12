@@ -1,12 +1,12 @@
 import os
 import json
-from fastapi import FastAPI, Depends, HTTPException
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from fastapi import FastAPI, Depends, HTTPException # pyright: ignore[reportMissingImports]
+from pydantic import BaseModel # pyright: ignore[reportMissingImports]
+from fastapi.middleware.cors import CORSMiddleware # pyright: ignore[reportMissingImports]
+from fastapi.staticfiles import StaticFiles # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import Session # pyright: ignore[reportMissingImports]
+from sqlalchemy import create_engine # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import sessionmaker # pyright: ignore[reportMissingImports]
 
 from models import Base, Crianca, Familia, MembroAgregado, Processo, Documento
 
