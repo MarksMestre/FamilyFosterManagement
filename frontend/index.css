@@ -1,0 +1,50 @@
+/* Garante que a tabela tem contexto para congelar */
+.table-container {
+  overflow-x: auto !important;
+  max-width: 100%;
+  position: relative;
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.sticky-table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  text-align: left;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Coluna 1: N.º Processo */
+.col-sticky-1 {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  left: 0px !important;
+  background-color: #ffffff !important;
+  z-index: 10 !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
+}
+
+th.col-sticky-1 {
+  background-color: #f1f5f9 !important;
+  z-index: 20 !important;
+}
+
+/* Coluna 2: Nome Criança */
+.col-sticky-2 {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  left: 110px !important;
+  background-color: #ffffff !important;
+  z-index: 10 !important;
+  min-width: 180px !important;
+  box-shadow: 5px 0 8px -3px rgba(0, 0, 0, 0.15) !important; /* Sombra visual */
+}
+
+th.col-sticky-2 {
+  background-color: #f1f5f9 !important;
+  z-index: 20 !important;
+}
