@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # 1. Base de Dados PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: acolhimento_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: acolhimento_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. API Backend (FastAPI + OCR)
+  backend:
+    build: ./backend
+    container_name: acolhimento_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://admin:adminpassword@postgres:5432/acolhimento_db
+      - STORAGE_PATH=/app/storage
+    volumes:
+      - ./storage:/app/storage
+      - ./backend:/app
+    depends_on:
+      - postgres
+
+  # 3. Frontend (React + Vite)
+  frontend:
+    build: ./frontend
+    container_name: acolhimento_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
