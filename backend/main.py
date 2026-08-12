@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, status
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +21,6 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API Sistema de Acolhimento")
 
-# 📌 CORS COMPLETO (Permite que o React faça POST/PUT/DELETE sem bloqueios)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,12 +40,11 @@ def get_db():
     finally:
         db.close()
 
-# Função auxiliar para converter datas com segurança
 def parse_date(data_str: Optional[str]):
-    if not data_str or data_str.strip() == "":
+    if not data_str or str(data_str).strip() in ["", "None", "N/D"]:
         return None
     try:
-        return date.fromisoformat(data_str)
+        return date.fromisoformat(str(data_str).split("T")[0])
     except ValueError:
         return None
 
@@ -62,19 +60,41 @@ class CriancaSchema(BaseModel):
     genero: Optional[str] = None
     data_nascimento: Optional[str] = None
     nacionalidade: Optional[str] = "Portuguesa"
+    morada: Optional[str] = None
     nif: Optional[str] = None
     niss: Optional[str] = None
     sns: Optional[str] = None
     doc_identificacao: Optional[str] = "Cartão de Cidadão"
     no_doc_identificacao: Optional[str] = None
     gestor: Optional[str] = None
-    servico: Optional[str] = None
+    servico: Optional[str] = "Serviço Social"
     estado_processo: Optional[str] = "Ativo"
-    valor_calculado: Optional[float] = 50.0
     acolhimento_anterior: Optional[str] = "Não"
+    data_entrada_1a_af: Optional[str] = None
+    data_saida_1a_af: Optional[str] = None
     data_entrada_af_atual: Optional[str] = None
     data_saida_af_atual: Optional[str] = None
+    observacoes: Optional[str] = None
+    transicao_para: Optional[str] = None
     familia_id: Optional[int] = None
+
+class FamiliaSchema(BaseModel):
+    no_certificacao: str
+    titular_nome: str
+    contacto: Optional[str] = None
+    email: Optional[str] = None
+    morada: Optional[str] = None
+    data_revisao: Optional[str] = None
+    nif: Optional[str] = None
+    niss: Optional[str] = None
+    sns: Optional[str] = None
+
+class MembroAgregadoSchema(BaseModel):
+    nome: str
+    relacao: Optional[str] = None
+    data_nascimento: Optional[str] = None
+    profissao: Optional[str] = None
+    validade_registo_criminal: Optional[str] = None
 
 # --- AUTENTICAÇÃO ---
 def carregar_utilizadores():
@@ -90,31 +110,19 @@ def login(dados: LoginRequest):
     user = next((u for u in utilizadores if u["username"] == dados.username and u["password"] == dados.password), None)
     if not user:
         raise HTTPException(status_code=401, detail="Utilizador ou palavra-passe incorretos")
-    return {
-        "status": "success",
-        "username": user["username"],
-        "nome": user["nome"],
-        "role": user["role"]
-    }
+    return {"status": "success", "username": user["username"], "nome": user["nome"], "role": user["role"]}
 
 @app.get("/")
 def home():
     return {"status": "ok", "message": "API Backend no ar!"}
 
-# --- ENDPOINTS DAS CRIANÇAS (CRUD) ---
-
+# --- ENDPOINTS DAS CRIANÇAS ---
 @app.get("/api/criancas")
 def listar_criancas(db: Session = Depends(get_db)):
     criancas = db.query(Crianca).all()
     resultado = []
     for c in criancas:
-        docs = [{
-            "id": d.id, 
-            "nome": d.nome_original, 
-            "tipo": d.tipo_documento,
-            "url": f"http://localhost:8000/storage/{d.nome_original}"
-        } for d in c.documentos]
-
+        docs = [{"id": d.id, "nome": d.nome_original, "tipo": d.tipo_documento, "url": f"http://localhost:8000/storage/{d.nome_original}"} for d in c.documentos]
         resultado.append({
             "id": c.id,
             "no_proc_interno": c.processo.no_proc_interno if c.processo else "N/A",
@@ -124,20 +132,23 @@ def listar_criancas(db: Session = Depends(get_db)):
             "data_nascimento": str(c.data_nascimento) if c.data_nascimento else "",
             "idade": c.idade,
             "nacionalidade": c.nacionalidade or "Portuguesa",
+            "morada": getattr(c, 'morada', '') or '',
             "nif": c.nif or "",
             "niss": c.niss or "",
             "sns": c.sns or "",
             "doc_identificacao": c.doc_identificacao or "Cartão de Cidadão",
             "no_doc_identificacao": c.no_doc_identificacao or "",
             "gestor": c.gestor or "",
-            "servico": c.servico or "",
+            "servico": c.servico or "Serviço Social",
             "estado_processo": c.estado_processo or "Ativo",
             "valor": c.valor_calculado,
             "acolhimento_anterior": c.acolhimento_anterior or "Não",
-            "data_entrada_1a_af": str(c.data_entrada_1a_af) if c.data_entrada_1a_af else None,
-            "data_saida_1a_af": str(c.data_saida_1a_af) if c.data_saida_1a_af else None,
+            "data_entrada_1a_af": str(c.data_entrada_1a_af) if c.data_entrada_1a_af else "",
+            "data_saida_1a_af": str(c.data_saida_1a_af) if c.data_saida_1a_af else "",
             "data_entrada_af_atual": str(c.data_entrada_af_atual) if c.data_entrada_af_atual else "",
             "data_saida_af_atual": str(c.data_saida_af_atual) if c.data_saida_af_atual else "",
+            "observacoes": getattr(c, 'observacoes', '') or '',
+            "transicao_para": getattr(c, 'transicao_para', '') or '',
             "titular_acolhimento": c.familia.titular_nome if c.familia else "Não atribuído",
             "no_certificacao": c.familia.no_certificacao if c.familia else "N/D",
             "familia_id": c.familia_id,
@@ -167,16 +178,20 @@ def criar_crianca(dados: CriancaSchema, db: Session = Depends(get_db)):
         gestor=dados.gestor,
         servico=dados.servico,
         estado_processo=dados.estado_processo,
-        # 📌 REMOVIDO: valor_calculado (é uma @property no modelo)
         acolhimento_anterior=dados.acolhimento_anterior,
+        data_entrada_1a_af=parse_date(dados.data_entrada_1a_af),
+        data_saida_1a_af=parse_date(dados.data_saida_1a_af),
         data_entrada_af_atual=parse_date(dados.data_entrada_af_atual),
         data_saida_af_atual=parse_date(dados.data_saida_af_atual),
         familia_id=dados.familia_id
     )
+    if hasattr(nova_crianca, 'morada'): nova_crianca.morada = dados.morada
+    if hasattr(nova_crianca, 'observacoes'): nova_crianca.observacoes = dados.observacoes
+    if hasattr(nova_crianca, 'transicao_para'): nova_crianca.transicao_para = dados.transicao_para
+
     db.add(nova_crianca)
     db.commit()
-    db.refresh(nova_crianca)
-    return {"message": "Criança criada com sucesso", "id": nova_crianca.id}
+    return {"message": "Criança criada com sucesso"}
 
 @app.put("/api/criancas/{crianca_id}")
 def atualizar_crianca(crianca_id: int, dados: CriancaSchema, db: Session = Depends(get_db)):
@@ -200,25 +215,36 @@ def atualizar_crianca(crianca_id: int, dados: CriancaSchema, db: Session = Depen
     c.gestor = dados.gestor
     c.servico = dados.servico
     c.estado_processo = dados.estado_processo
-    # 📌 REMOVIDO: c.valor_calculado = ...
     c.acolhimento_anterior = dados.acolhimento_anterior
+    c.data_entrada_1a_af = parse_date(dados.data_entrada_1a_af)
+    c.data_saida_1a_af = parse_date(dados.data_saida_1a_af)
     c.data_entrada_af_atual = parse_date(dados.data_entrada_af_atual)
     c.data_saida_af_atual = parse_date(dados.data_saida_af_atual)
     c.familia_id = dados.familia_id
+    
+    if hasattr(c, 'morada'): c.morada = dados.morada
+    if hasattr(c, 'observacoes'): c.observacoes = dados.observacoes
+    if hasattr(c, 'transicao_para'): c.transicao_para = dados.transicao_para
 
     db.commit()
     return {"message": "Criança atualizada com sucesso"}
+
 @app.delete("/api/criancas/{crianca_id}")
 def eliminar_crianca(crianca_id: int, db: Session = Depends(get_db)):
     c = db.query(Crianca).filter(Crianca.id == crianca_id).first()
     if not c:
         raise HTTPException(status_code=404, detail="Criança não encontrada")
-    
     if c.processo:
         db.delete(c.processo)
     db.delete(c)
     db.commit()
     return {"message": "Criança eliminada com sucesso"}
+
+# --- ENDPOINTS FAMÍLIA (TITULAR) ---
+@app.get("/api/familias")
+def listar_familias(db: Session = Depends(get_db)):
+    familias = db.query(Familia).all()
+    return [{"id": f.id, "no_certificacao": f.no_certificacao, "titular_nome": f.titular_nome} for f in familias]
 
 @app.get("/api/familias/{familia_id}")
 def obter_familia(familia_id: int, db: Session = Depends(get_db)):
@@ -229,25 +255,84 @@ def obter_familia(familia_id: int, db: Session = Depends(get_db)):
     agregado = [{
         "id": m.id,
         "nome": m.nome,
-        "data_nascimento": str(m.data_nascimento) if m.data_nascimento else "N/D",
-        "contacto": m.contacto,
-        "relacao": m.relacao,
-        "profissao": m.profissao,
-        "validade_registo_criminal": str(m.validade_registo_criminal) if m.validade_registo_criminal else "N/D"
+        "data_nascimento": str(m.data_nascimento) if m.data_nascimento else "",
+        "contacto": m.contacto or "",
+        "relacao": m.relacao or "",
+        "profissao": m.profissao or "",
+        "validade_registo_criminal": str(m.validade_registo_criminal) if m.validade_registo_criminal else ""
     } for m in fam.membros_agregado]
 
     return {
         "id": fam.id,
         "no_certificacao": fam.no_certificacao,
         "titular_nome": fam.titular_nome,
-        "data_revisao": str(fam.data_revisao) if fam.data_revisao else "N/D",
-        "contacto": fam.contacto,
-        "email": fam.email,
-        "morada": fam.morada,
-        "no_elementos_agregado": fam.no_elementos_agregado,
-        "nif": fam.nif,
-        "niss": fam.niss,
-        "sns": fam.sns,
-        "validade_registo_criminal": str(fam.validade_registo_criminal) if fam.validade_registo_criminal else "N/D",
+        "data_revisao": str(fam.data_revisao) if fam.data_revisao else "",
+        "contacto": fam.contacto or "",
+        "email": fam.email or "",
+        "morada": fam.morada or "",
+        "nif": fam.nif or "",
+        "niss": fam.niss or "",
+        "sns": fam.sns or "",
         "membros_agregado": agregado
     }
+
+@app.post("/api/familias", status_code=status.HTTP_201_CREATED)
+def criar_familia(dados: FamiliaSchema, db: Session = Depends(get_db)):
+    nova_fam = Familia(
+        no_certificacao=dados.no_certificacao,
+        titular_nome=dados.titular_nome,
+        contacto=dados.contacto,
+        email=dados.email,
+        morada=dados.morada,
+        data_revisao=parse_date(dados.data_revisao),
+        nif=dados.nif,
+        niss=dados.niss,
+        sns=dados.sns
+    )
+    db.add(nova_fam)
+    db.commit()
+    db.refresh(nova_fam)
+    return {"message": "Titular criado com sucesso", "id": nova_fam.id}
+
+@app.put("/api/familias/{familia_id}")
+def atualizar_familia(familia_id: int, dados: FamiliaSchema, db: Session = Depends(get_db)):
+    fam = db.query(Familia).filter(Familia.id == familia_id).first()
+    if not fam:
+        raise HTTPException(status_code=404, detail="Família não encontrada")
+
+    fam.no_certificacao = dados.no_certificacao
+    fam.titular_nome = dados.titular_nome
+    fam.contacto = dados.contacto
+    fam.email = dados.email
+    fam.morada = dados.morada
+    fam.data_revisao = parse_date(dados.data_revisao)
+    fam.nif = dados.nif
+    fam.niss = dados.niss
+    fam.sns = dados.sns
+
+    db.commit()
+    return {"message": "Titular atualizado com sucesso"}
+
+# --- ENDPOINTS AGREGADO FAMILIAR ---
+@app.post("/api/familias/{familia_id}/membros")
+def adicionar_membro_agregado(familia_id: int, dados: MembroAgregadoSchema, db: Session = Depends(get_db)):
+    novo_membro = MembroAgregado(
+        familia_id=familia_id,
+        nome=dados.nome,
+        relacao=dados.relacao,
+        data_nascimento=parse_date(dados.data_nascimento),
+        profissao=dados.profissao,
+        validade_registo_criminal=parse_date(dados.validade_registo_criminal)
+    )
+    db.add(novo_membro)
+    db.commit()
+    return {"message": "Membro do agregado adicionado com sucesso"}
+
+@app.delete("/api/membros/{membro_id}")
+def remover_membro_agregado(membro_id: int, db: Session = Depends(get_db)):
+    m = db.query(MembroAgregado).filter(MembroAgregado.id == membro_id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+    db.delete(m)
+    db.commit()
+    return {"message": "Membro do agregado removido"}
