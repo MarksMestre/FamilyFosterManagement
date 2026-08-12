@@ -1,5 +1,7 @@
 import os
+import json
 from fastapi import FastAPI, Depends, HTTPException
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -17,6 +19,35 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API Sistema de Acolhimento")
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+def carregar_utilizadores():
+    caminho = os.path.join(os.path.dirname(__file__), "users.json")
+    if os.path.exists(caminho):
+        with open(caminho, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+@app.post("/api/login")
+def login(dados: LoginRequest):
+    utilizadores = carregar_utilizadores()
+    
+    # Procura se existe algum utilizador com aquele username E aquela password exata
+    user = next((u for u in utilizadores if u["username"] == dados.username and u["password"] == dados.password), None)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Utilizador ou palavra-passe incorretos")
+
+    return {
+        "status": "success",
+        "username": user["username"],
+        "nome": user["nome"],
+        "role": user["role"]
+    }
 
 # CORS
 app.add_middleware(

@@ -1,0 +1,4 @@
+# Ignorar dados sensíveis e utilizadores
+users.json
+backend/users.json
+.env

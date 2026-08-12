@@ -1,18 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import '../index.css'; // Importa as regras CSS puras
+import '../index.css';
 
 // 📌 DETETA AUTOMATICAMENTE O IP REAL DA TUA MÁQUINA
 const API_BASE_URL = `http://${window.location.hostname}:8000`;
 
 export default function App() {
+  // 🔒 ESTADOS DE AUTENTICAÇÃO
+  const [user, setUser] = useState(null);
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  // 📋 ESTADOS DA TABELA
   const [criancas, setCriancas] = useState([]);
   const [familiaSelecionada, setFamiliaSelecionada] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // 1. Verifica se já existe uma sessão guardada no browser
   useEffect(() => {
-    carregarCriancas();
+    const savedUser = localStorage.getItem('user_session');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
   }, []);
+
+  // 2. Carrega as crianças apenas se o utilizador estiver autenticado
+  useEffect(() => {
+    if (user) {
+      carregarCriancas();
+    }
+  }, [user]);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setLoginError('');
+
+    axios.post(`${API_BASE_URL}/api/login`, {
+      username: usernameInput,
+      password: passwordInput
+    })
+    .then(res => {
+      const userData = res.data;
+      setUser(userData);
+      localStorage.setItem('user_session', JSON.stringify(userData)); // Guarda a sessão
+    })
+    .catch(err => {
+      setLoginError('Utilizador ou palavra-passe incorretos.');
+    });
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('user_session'); // Limpa a sessão ao sair
+  };
 
   const carregarCriancas = () => {
     axios.get(`${API_BASE_URL}/api/criancas`)
@@ -30,11 +71,83 @@ export default function App() {
       .catch(err => console.error("Erro ao carregar família:", err));
   };
 
+  // -------------------------------------------------------------
+  // 🔒 1. SE NÃO HOUVER UTILIZADOR LOGADO: MOSTRA APENAS O LOGIN
+  // -------------------------------------------------------------
+  if (!user) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#f1f5f9', fontFamily: 'sans-serif' }}>
+        <div style={{ backgroundColor: '#ffffff', padding: '40px', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', width: '100%', maxWidth: '380px', border: '1px solid #e2e8f0' }}>
+          
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h1 style={{ fontSize: '20px', color: '#0f172a', margin: 0 }}>🔒 Acesso Restrito</h1>
+            <p style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>Gestão de Acolhimento Familiar</p>
+          </div>
+
+          {loginError && (
+            <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '10px 12px', borderRadius: '8px', fontSize: '12px', marginBottom: '16px', textAlign: 'center', fontWeight: '500' }}>
+              ⚠️ {loginError}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>Utilizador</label>
+              <input 
+                type="text" 
+                value={usernameInput} 
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="Introduza o utilizador" 
+                required
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>Palavra-passe</label>
+              <input 
+                type="password" 
+                value={passwordInput} 
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="••••••••" 
+                required
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              style={{ width: '100%', padding: '12px', backgroundColor: '#0f172a', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+            >
+              Entrar no Sistema
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // 📋 2. SE HOUVER UTILIZADOR LOGADO: MOSTRA A APLICAÇÃO COMPLETA
+  // -------------------------------------------------------------
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '24px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      <header style={{ marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px' }}>
-        <h1 style={{ color: '#0f172a', margin: 0, fontSize: '24px' }}>📋 Sistema de Gestão de Acolhimento Familiar</h1>
-        <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>Tabela Detalhada com Colunas Congeladas (Processo e Nome)</p>
+      
+      <header style={{ marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ color: '#0f172a', margin: 0, fontSize: '24px' }}>📋 Sistema de Gestão de Acolhimento Familiar</h1>
+          <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px', margin: 0 }}>
+            Sessão iniciada como: <strong style={{ color: '#0f172a' }}>{user.nome}</strong> ({user.role})
+          </p>
+        </div>
+
+        {/* Botão de Terminar Sessão */}
+        <button 
+          onClick={handleLogout}
+          style={{ backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+        >
+          🚪 Sair da Conta
+        </button>
       </header>
 
       <main>
