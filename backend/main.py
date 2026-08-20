@@ -56,27 +56,27 @@ class LoginRequest(BaseModel):
 class CriancaSchema(BaseModel):
     nome: str
     no_proc_interno: str
-    no_ppp: Optional[str] = None
-    genero: Optional[str] = None
-    data_nascimento: Optional[str] = None
-    nacionalidade: Optional[str] = "Portuguesa"
-    morada: Optional[str] = None
-    nif: Optional[str] = None
-    niss: Optional[str] = None
-    sns: Optional[str] = None
-    doc_identificacao: Optional[str] = "Cartão de Cidadão"
-    no_doc_identificacao: Optional[str] = None
-    gestor: Optional[str] = None
-    servico: Optional[str] = "Serviço Social"
+    no_ppp: str
+    genero: str 
+    data_nascimento: str 
+    nacionalidade: str 
+    morada: str
+    nif: str 
+    niss: str
+    sns: str
+    doc_identificacao: str
+    no_doc_identificacao: str
+    gestor: str
+    servico: str
     estado_processo: Optional[str] = "Ativo"
-    acolhimento_anterior: Optional[str] = "Não"
-    data_entrada_1a_af: Optional[str] = None
-    data_saida_1a_af: Optional[str] = None
-    data_entrada_af_atual: Optional[str] = None
-    data_saida_af_atual: Optional[str] = None
-    observacoes: Optional[str] = None
-    transicao_para: Optional[str] = None
-    familia_id: Optional[int] = None
+    acolhimento_anterior: str
+    data_entrada_1a_af: str
+    data_saida_1a_af: str
+    data_entrada_af_atual: str
+    data_saida_af_atual: str
+    observacoes: str
+    transicao_para: str
+    familia_id: int
 
 class FamiliaSchema(BaseModel):
     no_certificacao: str

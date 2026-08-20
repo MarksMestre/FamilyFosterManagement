@@ -4,6 +4,16 @@ import '../index.css';
 
 const API_BASE_URL = `http://${window.location.hostname}:8000`;
 
+// Opções admitidas para o Tipo de Documento de Identificação
+const OPCOES_DOC_IDENTIFICACAO = [
+  'Cartão de Cidadão',
+  'Passaporte',
+  'Autorização de Residência',
+  'Cédula Pessoal / Assento de Nascimento',
+  'Título de Residência Temporário',
+  'Outro'
+];
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [usernameInput, setUsernameInput] = useState('');
@@ -18,6 +28,7 @@ export default function App() {
   // ESTADOS CRIANÇA
   const [modalFormAberto, setModalFormAberto] = useState(false);
   const [criancaEmEdicao, setCriancaEmEdicao] = useState(null);
+  const [errosValidacaoCrianca, setErrosValidacaoCrianca] = useState([]);
   const [formData, setFormData] = useState({
     no_proc_interno: '', nome: '', no_ppp: '', genero: 'Masculino',
     data_nascimento: '', nacionalidade: 'Portuguesa', morada: '',
@@ -91,6 +102,7 @@ export default function App() {
 
   const abrirModalCriar = () => {
     setCriancaEmEdicao(null);
+    setErrosValidacaoCrianca([]);
     setFormData({
       no_proc_interno: '', nome: '', no_ppp: '', genero: 'Masculino', data_nascimento: '',
       nacionalidade: 'Portuguesa', morada: '', doc_identificacao: 'Cartão de Cidadão',
@@ -104,20 +116,30 @@ export default function App() {
 
   const abrirModalEditar = (c) => {
     setCriancaEmEdicao(c.id);
+    setErrosValidacaoCrianca([]);
     setFormData({
       no_proc_interno: c.no_proc_interno !== 'N/A' ? c.no_proc_interno : '',
-      nome: c.nome, no_ppp: c.no_ppp !== 'N/D' ? c.no_ppp : '',
-      genero: c.genero !== 'N/D' ? c.genero : 'Masculino', data_nascimento: c.data_nascimento || '',
-      nacionalidade: c.nacionalidade || 'Portuguesa', morada: c.morada || '',
+      nome: c.nome || '',
+      no_ppp: c.no_ppp !== 'N/D' ? c.no_ppp : '',
+      genero: c.genero !== 'N/D' ? c.genero : 'Masculino',
+      data_nascimento: c.data_nascimento || '',
+      nacionalidade: c.nacionalidade || 'Portuguesa',
+      morada: c.morada || '',
       doc_identificacao: c.doc_identificacao || 'Cartão de Cidadão',
       no_doc_identificacao: c.no_doc_identificacao !== 'N/D' ? c.no_doc_identificacao : '',
-      nif: c.nif !== 'N/D' ? c.nif : '', niss: c.niss !== 'N/D' ? c.niss : '', sns: c.sns !== 'N/D' ? c.sns : '',
-      gestor: c.gestor !== 'Não atribuído' ? c.gestor : '', servico: c.servico || 'Serviço Social',
-      estado_processo: c.estado_processo || 'Ativo', acolhimento_anterior: c.acolhimento_anterior || 'Não',
-      data_entrada_1a_af: c.data_entrada_1a_af || '', data_saida_1a_af: c.data_saida_1a_af || '',
+      nif: c.nif !== 'N/D' ? c.nif : '',
+      niss: c.niss !== 'N/D' ? c.niss : '',
+      sns: c.sns !== 'N/D' ? c.sns : '',
+      gestor: c.gestor !== 'Não atribuído' ? c.gestor : '',
+      servico: c.servico || 'Serviço Social',
+      estado_processo: c.estado_processo || 'Ativo',
+      acolhimento_anterior: c.acolhimento_anterior || 'Não',
+      data_entrada_1a_af: c.data_entrada_1a_af || '',
+      data_saida_1a_af: c.data_saida_1a_af || '',
       data_entrada_af_atual: c.data_entrada_af_atual !== 'N/D' ? c.data_entrada_af_atual : '',
       data_saida_af_atual: c.data_saida_af_atual || '',
-      observacoes: c.observacoes || '', transicao_para: c.transicao_para || '',
+      observacoes: c.observacoes || '',
+      transicao_para: c.transicao_para || '',
       familia_id: c.familia_id || ''
     });
     setModalFormAberto(true);
@@ -129,13 +151,65 @@ export default function App() {
     }
   };
 
+  // --- VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ---
+  const validarFormularioCrianca = () => {
+    const camposObrigatorios = [
+      { campo: formData.no_proc_interno, nome: 'N.º Processo' },
+      { campo: formData.nome, nome: 'Nome Completo' },
+      { campo: formData.no_ppp, nome: 'N.º PPP' },
+      { campo: formData.data_nascimento, nome: 'Data Nascimento' },
+      { campo: formData.nacionalidade, nome: 'Nacionalidade' },
+      { campo: formData.doc_identificacao, nome: 'Tipo Doc. Identificação' },
+      { campo: formData.no_doc_identificacao, nome: 'N.º Doc. Identificação' },
+      { campo: formData.nif, nome: 'NIF' },
+      { campo: formData.niss, nome: 'NISS' },
+      { campo: formData.sns, nome: 'SNS' },
+      { campo: formData.gestor, nome: 'Gestor de Caso' },
+      { campo: formData.servico, nome: 'Serviço de Gestão' },
+      { campo: formData.estado_processo, nome: 'Estado do Processo' },
+      { 
+        campo: formData.familia_id, 
+        nome: 'Titular de Acolhimento', 
+        valido: Boolean(formData.familia_id && formData.familia_id !== '' && formData.familia_id !== 'Nenhum / Não Atribuído')
+      }
+    ];
+
+    const erros = [];
+    camposObrigatorios.forEach(item => {
+      if (item.valido !== undefined) {
+        if (!item.valido) erros.push(item.nome);
+      } else if (!item.campo || String(item.campo).trim() === '' || String(item.campo).trim() === 'N/D' || String(item.campo).trim() === 'N/A') {
+        erros.push(item.nome);
+      }
+    });
+
+    return erros;
+  };
+
   const handleSubmitForm = (e) => {
     e.preventDefault();
+    
+    // Executa a verificação dos campos obrigatórios
+    const erros = validarFormularioCrianca();
+    if (erros.length > 0) {
+      setErrosValidacaoCrianca(erros);
+      // Faz scroll para o topo da janela modal para o utilizador ver o aviso de imediato
+      const modalContent = document.getElementById('modal-crianca-content');
+      if (modalContent) modalContent.scrollTop = 0;
+      return;
+    }
+
+    setErrosValidacaoCrianca([]);
     const payload = { ...formData, familia_id: formData.familia_id ? parseInt(formData.familia_id) : null };
+    
     if (criancaEmEdicao) {
-      axios.put(`${API_BASE_URL}/api/criancas/${criancaEmEdicao}`, payload).then(() => { setModalFormAberto(false); carregarCriancas(); });
+      axios.put(`${API_BASE_URL}/api/criancas/${criancaEmEdicao}`, payload)
+        .then(() => { setModalFormAberto(false); carregarCriancas(); })
+        .catch(err => alert("Erro ao atualizar: " + err.message));
     } else {
-      axios.post(`${API_BASE_URL}/api/criancas`, payload).then(() => { setModalFormAberto(false); carregarCriancas(); });
+      axios.post(`${API_BASE_URL}/api/criancas`, payload)
+        .then(() => { setModalFormAberto(false); carregarCriancas(); })
+        .catch(err => alert("Erro ao criar: " + err.message));
     }
   };
 
@@ -173,14 +247,12 @@ export default function App() {
     }
   };
 
-  // ⚠️ VERIFICAÇÃO DE VALIDADE DE CERTIFICADO (EM DESTAQUE SE < 3 MESES)
   const verificarCaducidadeCertificado = (dataValidadeStr) => {
     if (!dataValidadeStr) return { expiraEmBreve: false, diasRestantes: 999 };
     const dataVal = new Date(dataValidadeStr);
     const hoje = new Date();
     const diffTempo = dataVal.getTime() - hoje.getTime();
     const diffDias = Math.ceil(diffTempo / (1000 * 3600 * 24));
-    // 3 meses = ~90 dias
     return { expiraEmBreve: diffDias <= 90, diasRestantes: diffDias };
   };
 
@@ -205,7 +277,7 @@ export default function App() {
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '24px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       
-      {/* 🎨 REGRAS DE ESTILO CSS PARA O ESTADO (VERDE/VERMELHO + OPACIDADE NA LINHA) */}
+      {/* REGRAS CSS PURAS */}
       <style>{`
         .table-container { overflow-x: auto !important; max-width: 100%; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; }
         .sticky-table { width: 100%; border-collapse: separate !important; border-spacing: 0 !important; text-align: left; font-size: 12px; white-space: nowrap; }
@@ -214,12 +286,21 @@ export default function App() {
         .col-sticky-2 { position: sticky !important; left: 110px !important; background-color: #ffffff !important; z-index: 10 !important; min-width: 180px !important; box-shadow: 5px 0 8px -3px rgba(0, 0, 0, 0.15) !important; }
         th.col-sticky-2 { background-color: #f1f5f9 !important; z-index: 20 !important; }
 
-        /* Estilos do Estado */
-        .status-badge-ativo { background-color: #dcfce7 !important; color: #15803d !important; padding: 4px 10px; borderRadius: 12px; fontSize: 11px; fontWeight: 800; display: inline-block; }
-        .status-badge-inativo { background-color: #fee2e2 !important; color: #b91c1c !important; padding: 4px 10px; borderRadius: 12px; fontSize: 11px; fontWeight: 800; display: inline-block; }
-        
-        /* Opacidade da linha inteira quando Inativo */
+        .status-badge-ativo { background-color: #dcfce7 !important; color: #15803d !important; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; display: inline-block; }
+        .status-badge-inativo { background-color: #fee2e2 !important; color: #b91c1c !important; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; display: inline-block; }
         .tr-inativo { opacity: 0.55 !important; background-color: #fafafa !important; }
+
+        /* Estilo do Card de Alerta de Erros a Vermelho */
+        .erro-validacao-card {
+          background-color: #fef2f2;
+          border: 1.5px solid #f87171;
+          color: #991b1b;
+          padding: 14px 18px;
+          border-radius: 10px;
+          margin-bottom: 16px;
+          font-size: 12.5px;
+          box-shadow: 0 2px 4px rgba(239, 68, 68, 0.08);
+        }
       `}</style>
 
       <header style={{ marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -274,14 +355,11 @@ export default function App() {
                     <td style={{ padding: '12px' }}><strong>{c.gestor}</strong><br/><small>{c.servico}</small></td>
                     <td style={{ padding: '12px' }}>{c.acolhimento_anterior === "Sim" ? `Sim (${c.data_entrada_1a_af} a ${c.data_saida_1a_af})` : 'Sem histórico'}</td>
                     <td style={{ padding: '12px' }}>Entrada: {c.data_entrada_af_atual}<br/>{c.data_saida_af_atual && `Saída: ${c.data_saida_af_atual}`}</td>
-                    
-                    {/* ESTADO COM BADGE COLORIDO VERDE/VERMELHO */}
                     <td style={{ padding: '12px' }}>
                       <span className={isInativo ? 'status-badge-inativo' : 'status-badge-ativo'}>
                         ● {c.estado_processo.toUpperCase()}
                       </span>
                     </td>
-
                     <td style={{ padding: '12px' }}>{c.titular_acolhimento}</td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
@@ -302,58 +380,157 @@ export default function App() {
         </div>
       </main>
 
-      {/* 📝 MODAL CRIAR / EDITAR CRIANÇA */}
+      {/* 📝 MODAL CRIAR / EDITAR CRIANÇA COM VALIDAÇÃO DETALHADA A VERMELHO */}
       {modalFormAberto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
-          <div style={{ backgroundColor: '#ffffff', padding: '28px', borderRadius: '16px', maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
-            <button onClick={() => setModalFormAberto(false)} style={{ position: 'absolute', top: '20px', right: '20px', border: 'none', background: '#f1f5f9', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}>✕</button>
+          <div id="modal-crianca-content" style={{ backgroundColor: '#ffffff', padding: '28px', borderRadius: '16px', maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setModalFormAberto(false)} style={{ position: 'absolute', top: '20px', right: '20px', border: 'none', background: '#f1f5f9', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+            
             <h2 style={{ marginTop: 0, color: '#0f172a' }}>{criancaEmEdicao ? '✏️ Editar Processo da Criança' : '➕ Registar Nova Criança'}</h2>
 
-            <form onSubmit={handleSubmitForm} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginTop: '16px' }}>
+            {/* 🔴 AVISO EM VERMELHO DE DADOS EM FALTA (SEM POP-UPS) */}
+            {errosValidacaoCrianca.length > 0 && (
+              <div className="erro-validacao-card">
+                <div style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '13px' }}>
+                  ⚠️ Não é possível salvar os dados da criança por faltar os seguintes dados:
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6' }}>
+                  {errosValidacaoCrianca.map((erro, idx) => (
+                    <li key={idx}><strong>{erro}</strong></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitForm} noValidate style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginTop: '16px' }}>
               <div style={{ gridColumn: 'span 3', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', fontWeight: 'bold', color: '#2563eb' }}>1. Dados Pessoais & Identificação</div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>N.º Processo *</label><input type="text" required value={formData.no_proc_interno} onChange={e => setFormData({...formData, no_proc_interno: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Nome Completo *</label><input type="text" required value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>N.º PPP</label><input type="text" value={formData.no_ppp} onChange={e => setFormData({...formData, no_ppp: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Data Nascimento</label><input type="date" value={formData.data_nascimento} onChange={e => setFormData({...formData, data_nascimento: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Nacionalidade</label><input type="text" value={formData.nacionalidade} onChange={e => setFormData({...formData, nacionalidade: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Tipo Doc. Identificação</label><input type="text" value={formData.doc_identificacao} onChange={e => setFormData({...formData, doc_identificacao: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>N.º Doc. Identificação</label><input type="text" value={formData.no_doc_identificacao} onChange={e => setFormData({...formData, no_doc_identificacao: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Morada</label><input type="text" value={formData.morada} onChange={e => setFormData({...formData, morada: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
+              
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>N.º Processo *</label>
+                <input type="text" value={formData.no_proc_interno} onChange={e => setFormData({...formData, no_proc_interno: e.target.value})} placeholder="Ex: PROC-2026-001" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Nome Completo *</label>
+                <input type="text" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} placeholder="Nome completo" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>N.º PPP *</label>
+                <input type="text" value={formData.no_ppp} onChange={e => setFormData({...formData, no_ppp: e.target.value})} placeholder="Ex: PPP-12345" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Data Nascimento *</label>
+                <input type="date" value={formData.data_nascimento} onChange={e => setFormData({...formData, data_nascimento: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Nacionalidade *</label>
+                <input type="text" value={formData.nacionalidade} onChange={e => setFormData({...formData, nacionalidade: e.target.value})} placeholder="Ex: Portuguesa" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+
+              {/* 📌 MENU FLUTUANTE PARA TIPO DE DOCUMENTO DE IDENTIFICAÇÃO */}
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Tipo Doc. Identificação *</label>
+                <select 
+                  value={formData.doc_identificacao} 
+                  onChange={e => setFormData({...formData, doc_identificacao: e.target.value})} 
+                  style={{ width: '100%', padding: '6px', boxSizing: 'border-box', backgroundColor: '#ffffff', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                >
+                  {OPCOES_DOC_IDENTIFICACAO.map((opcao, i) => (
+                    <option key={i} value={opcao}>{opcao}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>N.º Doc. Identificação *</label>
+                <input type="text" value={formData.no_doc_identificacao} onChange={e => setFormData({...formData, no_doc_identificacao: e.target.value})} placeholder="Ex: 12345678 9 ZZ0" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Morada</label>
+                <input type="text" value={formData.morada} onChange={e => setFormData({...formData, morada: e.target.value})} placeholder="Rua, localidade e código postal" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
 
               <div style={{ gridColumn: 'span 3', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', fontWeight: 'bold', color: '#2563eb', marginTop: '10px' }}>2. Informações Fiscais & Gestão</div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>NIF</label><input type="text" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>NISS</label><input type="text" value={formData.niss} onChange={e => setFormData({...formData, niss: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>SNS</label><input type="text" value={formData.sns} onChange={e => setFormData({...formData, sns: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Gestor de Caso</label><input type="text" value={formData.gestor} onChange={e => setFormData({...formData, gestor: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Serviço de Gestão</label><input type="text" value={formData.servico} onChange={e => setFormData({...formData, servico: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Estado do Processo</label><select value={formData.estado_processo} onChange={e => setFormData({...formData, estado_processo: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }}><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option></select></div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>NIF *</label>
+                <input type="text" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} placeholder="9 dígitos" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>NISS *</label>
+                <input type="text" value={formData.niss} onChange={e => setFormData({...formData, niss: e.target.value})} placeholder="11 dígitos" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>SNS *</label>
+                <input type="text" value={formData.sns} onChange={e => setFormData({...formData, sns: e.target.value})} placeholder="9 dígitos" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Gestor de Caso *</label>
+                <input type="text" value={formData.gestor} onChange={e => setFormData({...formData, gestor: e.target.value})} placeholder="Nome do técnico responsável" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Serviço de Gestão *</label>
+                <input type="text" value={formData.servico} onChange={e => setFormData({...formData, servico: e.target.value})} placeholder="Ex: Serviço Social" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Estado do Processo *</label>
+                <select value={formData.estado_processo} onChange={e => setFormData({...formData, estado_processo: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }}>
+                  <option value="Ativo">Ativo</option>
+                  <option value="Inativo">Inativo</option>
+                </select>
+              </div>
 
               <div style={{ gridColumn: 'span 3', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', fontWeight: 'bold', color: '#2563eb', marginTop: '10px' }}>3. Histórico e Acolhimento Atual</div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Acolhimento Anterior?</label><select value={formData.acolhimento_anterior} onChange={e => setFormData({...formData, acolhimento_anterior: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }}><option value="Não">Não</option><option value="Sim">Sim</option></select></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Entrada AF Anterior</label><input type="date" value={formData.data_entrada_1a_af} onChange={e => setFormData({...formData, data_entrada_1a_af: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Saída AF Anterior</label><input type="date" value={formData.data_saida_1a_af} onChange={e => setFormData({...formData, data_saida_1a_af: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Entrada AF Atual</label><input type="date" value={formData.data_entrada_af_atual} onChange={e => setFormData({...formData, data_entrada_af_atual: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Saída AF Atual</label><input type="date" value={formData.data_saida_af_atual} onChange={e => setFormData({...formData, data_saida_af_atual: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Titular de Acolhimento</label>
-                <select value={formData.familia_id} onChange={e => setFormData({...formData, familia_id: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }}>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Acolhimento Anterior?</label>
+                <select value={formData.acolhimento_anterior} onChange={e => setFormData({...formData, acolhimento_anterior: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }}>
+                  <option value="Não">Não</option>
+                  <option value="Sim">Sim</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Entrada AF Anterior</label>
+                <input type="date" value={formData.data_entrada_1a_af} onChange={e => setFormData({...formData, data_entrada_1a_af: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Saída AF Anterior</label>
+                <input type="date" value={formData.data_saida_1a_af} onChange={e => setFormData({...formData, data_saida_1a_af: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Entrada AF Atual</label>
+                <input type="date" value={formData.data_entrada_af_atual} onChange={e => setFormData({...formData, data_entrada_af_atual: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Saída AF Atual</label>
+                <input type="date" value={formData.data_saida_af_atual} onChange={e => setFormData({...formData, data_saida_af_atual: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+
+              {/* 📌 TITULAR DE ACOLHIMENTO OBRIGATÓRIO */}
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Titular de Acolhimento *</label>
+                <select value={formData.familia_id} onChange={e => setFormData({...formData, familia_id: e.target.value})} style={{ width: '100%', padding: '6px', boxSizing: 'border-box', backgroundColor: '#ffffff', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
                   <option value="">Nenhum / Não Atribuído</option>
                   {listaFamilias.map(f => <option key={f.id} value={f.id}>{f.titular_nome} ({f.no_certificacao})</option>)}
                 </select>
               </div>
 
-              <div style={{ gridColumn: 'span 3', marginTop: '10px' }}><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Transição para:</label><input type="text" value={formData.transicao_para} onChange={e => setFormData({...formData, transicao_para: e.target.value})} placeholder="Ex: Adoção, Maioridade" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} /></div>
-              <div style={{ gridColumn: 'span 3' }}><label style={{ fontSize: '11px', fontWeight: 'bold' }}>Observações</label><textarea value={formData.observacoes} onChange={e => setFormData({...formData, observacoes: e.target.value})} style={{ width: '100%', padding: '6px', height: '60px', boxSizing: 'border-box' }} /></div>
+              <div style={{ gridColumn: 'span 3', marginTop: '10px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Transição para:</label>
+                <input type="text" value={formData.transicao_para} onChange={e => setFormData({...formData, transicao_para: e.target.value})} placeholder="Ex: Adoção, Maioridade, Autonomia" style={{ width: '100%', padding: '6px', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ gridColumn: 'span 3' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold' }}>Observações</label>
+                <textarea value={formData.observacoes} onChange={e => setFormData({...formData, observacoes: e.target.value})} style={{ width: '100%', padding: '6px', height: '60px', boxSizing: 'border-box' }} />
+              </div>
 
               <div style={{ gridColumn: 'span 3', display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setModalFormAberto(false)} style={{ padding: '8px 16px' }}>Cancelar</button>
-                <button type="submit" style={{ padding: '8px 20px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold' }}>Guardar Alterações</button>
+                <button type="button" onClick={() => setModalFormAberto(false)} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" style={{ padding: '8px 20px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Guardar Alterações</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* 🏠 MODAL FICHA FAMÍLIA & AGREGADO (COM CERTIFICADO, DOCUMENTOS E EDIÇÃO COMPLETA) */}
+      {/* 🏠 MODAL FICHA FAMÍLIA & AGREGADO */}
       {familiaSelecionada && (() => {
         const estadoCert = verificarCaducidadeCertificado(familiaSelecionada.validade_certificacao);
         return (
@@ -364,7 +541,6 @@ export default function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h2 style={{ margin: 0, color: '#0f172a' }}>🏠 Ficha do Titular e Agregado</h2>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {/* Link para a pasta de documentos digitalizados do Titular */}
                   <a href={`${API_BASE_URL}/storage/documentos/titular_${familiaSelecionada.id}`} target="_blank" rel="noreferrer" style={{ padding: '6px 12px', background: '#475569', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontSize: '12px', fontWeight: 'bold' }}>
                     📁 Pasta Documentos Titular
                   </a>
@@ -377,7 +553,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* DADOS DO TITULAR (COM VALIDADE E ALERTA DE CERTIFICADO) */}
+              {/* DADOS DO TITULAR */}
               {editandoTitular ? (
                 <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #cbd5e1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
                   <div>
@@ -404,8 +580,6 @@ export default function App() {
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '13px' }}>
                   <div><strong>Titular:</strong> {familiaSelecionada.titular_nome}</div>
-                  
-                  {/* ALERTA DE VALIDADE DO CERTIFICADO COM EMOJI DE DANGER ⚠️ */}
                   <div>
                     <strong>N.º Certificação:</strong> {familiaSelecionada.no_certificacao}
                     {familiaSelecionada.validade_certificacao && (
@@ -419,7 +593,6 @@ export default function App() {
                       </div>
                     )}
                   </div>
-
                   <div><strong>Contacto:</strong> {familiaSelecionada.contacto || 'N/D'}</div>
                   <div><strong>Email:</strong> {familiaSelecionada.email || 'N/D'}</div>
                   <div style={{ gridColumn: 'span 2' }}><strong>Morada:</strong> {familiaSelecionada.morada || 'N/D'}</div>
@@ -428,7 +601,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* 👨‍👩‍👧‍👦 AGREGADO FAMILIAR COM EDIÇÃO EM LINHA & DOCS */}
+              {/* MEMBROS DO AGREGADO */}
               <h3 style={{ color: '#0f172a', marginTop: '24px', fontSize: '16px' }}>👨‍👩‍👧‍👦 Membros do Agregado Familiar</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', marginTop: '8px' }}>
                 <thead>
@@ -488,7 +661,7 @@ export default function App() {
                 </tbody>
               </table>
 
-              {/* FORMULÁRIO ADICIONAR NOVO MEMBRO */}
+              {/* FORMULÁRIO NOVO MEMBRO */}
               {isAdmin && (
                 <form onSubmit={handleAdicionarMembro} style={{ marginTop: '16px', backgroundColor: '#eff6ff', padding: '12px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
                   <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#1e40af' }}>➕ Adicionar Novo Membro ao Agregado</h4>

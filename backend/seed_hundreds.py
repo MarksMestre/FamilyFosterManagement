@@ -103,7 +103,7 @@ def seed_hundreds():
         db.add(proc)
         db.flush()
 
-        fam_atribuida = random.choice(familias) if random.random() > 0.2 else None
+        fam_atribuida = random.choice(familias)
         num_criancas = random.choices([1, 2], weights=[0.7, 0.3])[0]
 
         for _ in range(num_criancas):
