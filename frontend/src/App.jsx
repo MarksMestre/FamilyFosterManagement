@@ -277,20 +277,71 @@ export default function App() {
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '24px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       
-      {/* REGRAS CSS PURAS */}
+      {/* REGRAS CSS PURAS (CABEÇALHO FIXO NO TOPO + COLUNAS CONGELADAS) */}
       <style>{`
-        .table-container { overflow-x: auto !important; max-width: 100%; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; }
-        .sticky-table { width: 100%; border-collapse: separate !important; border-spacing: 0 !important; text-align: left; font-size: 12px; white-space: nowrap; }
-        .col-sticky-1 { position: sticky !important; left: 0px !important; background-color: #ffffff !important; z-index: 10 !important; min-width: 110px !important; }
-        th.col-sticky-1 { background-color: #f1f5f9 !important; z-index: 20 !important; }
-        .col-sticky-2 { position: sticky !important; left: 110px !important; background-color: #ffffff !important; z-index: 10 !important; min-width: 180px !important; box-shadow: 5px 0 8px -3px rgba(0, 0, 0, 0.15) !important; }
-        th.col-sticky-2 { background-color: #f1f5f9 !important; z-index: 20 !important; }
+        .table-container { 
+          overflow-x: auto !important; 
+          overflow-y: auto !important; 
+          max-height: 75vh !important; /* Permite o scroll vertical com cabeçalho fixo */
+          background-color: #ffffff; 
+          border-radius: 12px; 
+          border: 1px solid #e2e8f0; 
+          box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        
+        .sticky-table { 
+          width: 100%; 
+          border-collapse: separate !important; 
+          border-spacing: 0 !important; 
+          text-align: left; 
+          font-size: 12px; 
+          white-space: nowrap; 
+        }
+
+        /* 📌 FIXAR TODO O CABEÇALHO NO TOPO */
+        .sticky-table thead th {
+          position: sticky !important;
+          top: 0px !important;
+          background-color: #f1f5f9 !important;
+          z-index: 20 !important;
+          border-bottom: 2px solid #cbd5e1 !important;
+        }
+
+        /* 📌 COLUNA 1 CONGELADA À ESQUERDA */
+        .col-sticky-1 { 
+          position: sticky !important; 
+          left: 0px !important; 
+          background-color: #ffffff !important; 
+          z-index: 10 !important; 
+          min-width: 110px !important; 
+        }
+
+        /* CANTO SUPERIOR ESQUERDO 1 (Cruzamento Topo + Coluna 1) */
+        th.col-sticky-1 { 
+          background-color: #f1f5f9 !important; 
+          z-index: 30 !important; 
+        }
+
+        /* 📌 COLUNA 2 CONGELADA À ESQUERDA */
+        .col-sticky-2 { 
+          position: sticky !important; 
+          left: 110px !important; 
+          background-color: #ffffff !important; 
+          z-index: 10 !important; 
+          min-width: 180px !important; 
+          box-shadow: 5px 0 8px -3px rgba(0, 0, 0, 0.15) !important; 
+        }
+
+        /* CANTO SUPERIOR ESQUERDO 2 (Cruzamento Topo + Coluna 2) */
+        th.col-sticky-2 { 
+          background-color: #f1f5f9 !important; 
+          z-index: 30 !important; 
+        }
 
         .status-badge-ativo { background-color: #dcfce7 !important; color: #15803d !important; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; display: inline-block; }
         .status-badge-inativo { background-color: #fee2e2 !important; color: #b91c1c !important; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; display: inline-block; }
         .tr-inativo { opacity: 0.55 !important; background-color: #fafafa !important; }
 
-        /* Estilo do Card de Alerta de Erros a Vermelho */
         .erro-validacao-card {
           background-color: #fef2f2;
           border: 1.5px solid #f87171;
